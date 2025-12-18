@@ -1,0 +1,327 @@
+{
+  "schema_version": "1.0.0",
+  "policy_id": "hr_autopilot_policy_ru_v1",
+  "description": "Справочная JSON-спецификация HR-политик. Актуальная конфигурация находится в docs/prompts/hr_agent_system.md (Markdown для OpenAI Assistant). Этот файл предназначен для будущей автоматизации и валидации.",
+  "updated_at": "2025-12-18",
+  "default_language": "ru",
+  "default_timezone": "Europe/Moscow",
+  
+  "global": {
+    "allowed_statuses": [
+      "new",
+      "screening",
+      "needs_clarification",
+      "qualified",
+      "rejected",
+      "scheduled",
+      "waiting_docs",
+      "escalated"
+    ],
+    "status_flow": {
+      "new": ["screening", "needs_clarification", "rejected", "escalated"],
+      "screening": ["needs_clarification", "qualified", "rejected", "escalated"],
+      "needs_clarification": ["screening", "qualified", "rejected", "escalated"],
+      "qualified": ["scheduled", "waiting_docs", "escalated"],
+      "waiting_docs": ["qualified", "rejected", "escalated"],
+      "scheduled": ["escalated"],
+      "rejected": [],
+      "escalated": []
+    },
+    "candidate_minimum_profile": {
+      "required_for_create": ["vacancy_key", "city", "source", "telegram.chat_id"],
+      "recommended": ["full_name", "phone", "experience_years"]
+    }
+  },
+  
+  "locations": {
+    "hire_cities": ["Москва", "Санкт-Петербург", "Казань", "Новосибирск"],
+    "city_aliases": {
+      "СПБ": "Санкт-Петербург",
+      "Питер": "Санкт-Петербург",
+      "Мск": "Москва",
+      "НСК": "Новосибирск"
+    }
+  },
+  
+  "reason_codes": {
+    "wrong_city": {
+      "label": "Город не в найме",
+      "description": "Кандидат из города, где нет набора, и не готов к переезду",
+      "candidate_message_template": "Спасибо! Сейчас набор идёт в: {hire_cities}. Если готовы рассмотреть переезд — напишите какой город."
+    },
+    "underage": {
+      "label": "Возраст меньше 18",
+      "description": "Кандидату меньше 18 лет (для вакансий с возрастным ограничением)",
+      "candidate_message_template": "Спасибо за отклик! На эту вакансию можно только с 18 лет. Если хотите — напишите, когда будет 18."
+    },
+    "no_smartphone": {
+      "label": "Нет смартфона Android/iOS",
+      "description": "Для курьерских вакансий требуется смартфон для приложения",
+      "candidate_message_template": "Понял. Для работы нужен смартфон Android/iOS, потому что задания идут через приложение. Если появится — напишите."
+    },
+    "no_work_docs": {
+      "label": "Нет документов для работы",
+      "description": "Отсутствуют документы для легального оформления в РФ",
+      "candidate_message_template": "Спасибо! Для оформления нужны документы для легальной работы (паспорт РФ/ЕАЭС/патент). Если сможете предоставить — напишите."
+    },
+    "no_drivers_license": {
+      "label": "Нет водительских прав",
+      "description": "Для courier_auto требуются права категории B и стаж",
+      "candidate_message_template": "Понял. На авто-курьера нужны водительские права. Могу предложить вариант пешего/вело-курьера — подойдёт?"
+    },
+    "no_required_experience": {
+      "label": "Нет обязательного опыта",
+      "description": "Не соответствует минимальным требованиям по опыту (например, бытовая машинка вместо промоборудования)",
+      "candidate_message_template": "Спасибо! Для этой роли нужен обязательный опыт: {requirement}. Если он у вас есть — уточните, пожалуйста."
+    },
+    "schedule_mismatch": {
+      "label": "Не подходит график",
+      "description": "График работы/смен не совпадает с возможностями кандидата",
+      "candidate_message_template": "Понял. Похоже, по графику сейчас не совпадает. Если сможете рассмотреть другой график — напишите."
+    },
+    "candidate_declined": {
+      "label": "Кандидат отказался",
+      "description": "Кандидат самостоятельно отказался от вакансии",
+      "candidate_message_template": "Спасибо, понял. Если захотите вернуться к вакансии — напишите в любой момент."
+    },
+    "vip_or_risk": {
+      "label": "VIP/риск/сомнение → эскалация",
+      "description": "Нестандартная ситуация, требующая передачи живому HR",
+      "candidate_message_template": "Понял. Передам ваш кейс ответственному специалисту — он свяжется с вами. Уточните, пожалуйста, лучший контакт."
+    },
+    "tool_error": {
+      "label": "Ошибка интеграции/сервиса",
+      "description": "Технический сбой при вызове инструментов (CRM, календарь)",
+      "candidate_message_template": "Принял сообщение. Сейчас уточню данные и вернусь к вам чуть позже."
+    },
+    "openai_error": {
+      "label": "Ошибка обработки",
+      "description": "Таймаут или ошибка OpenAI API",
+      "candidate_message_template": "Принял сообщение. Сейчас уточню данные и вернусь к вам чуть позже."
+    },
+    "needs_more_info": {
+      "label": "Нужно уточнение",
+      "description": "Недостаточно информации для принятия решения",
+      "candidate_message_template": "Чтобы продолжить, уточните, пожалуйста: {questions}."
+    }
+  },
+  
+  "routing": {
+    "vip_keywords": ["партнёр", "партнер", "контракт", "объёмы", "объемы", "срочно", "владелец", "директор"],
+    "abuse_keywords": ["шантаж", "угроза", "угрожаю", "проблемы устрою", "суд", "полиция", "разнесу"],
+    "rules": [
+      {
+        "rule_id": "route_vip",
+        "description": "VIP-кандидаты/партнёры → немедленная эскалация",
+        "when": "message contains any of vip_keywords",
+        "action": "escalate_to_human(priority=high, reason=vip_or_partner)"
+      },
+      {
+        "rule_id": "route_abuse",
+        "description": "Конфликт/угрозы → срочная эскалация",
+        "when": "message contains any of abuse_keywords",
+        "action": "escalate_to_human(priority=urgent, reason=conflict_or_abuse)"
+      }
+    ]
+  },
+  
+  "followups": {
+    "enabled": false,
+    "description": "Автоматические follow-up напоминания (в разработке)",
+    "default_timezone": "Europe/Moscow",
+    "plans": [
+      {
+        "plan_id": "waiting_docs_24h",
+        "status": "waiting_docs",
+        "after_hours": 24,
+        "max_attempts": 3,
+        "templates": [
+          "Добрый день! Подскажите, получилось подготовить документы для оформления?",
+          "Напомню про документы: если что-то не получается — напишите, помогу.",
+          "Если актуально — пришлите документы. Если неактуально — тоже напишите, закрою заявку."
+        ],
+        "on_exhausted": {
+          "new_status": "escalated",
+          "reason_code": "vip_or_risk",
+          "note": "Нет ответа на 3 follow-up попытки"
+        }
+      }
+    ]
+  },
+  
+  "vacancies": [
+    {
+      "vacancy_key": "courier_walk_bike",
+      "title": "Курьер (пеший/вело)",
+      "description": "Доставка заказов в вашем городе. Быстрый старт, гибкий график.",
+      "hire_cities": ["Москва", "Санкт-Петербург", "Казань", "Новосибирск"],
+      "knockout_rules": [
+        {
+          "rule_id": "age_18_plus",
+          "type": "min_age",
+          "value": 18,
+          "reason_code": "underage"
+        },
+        {
+          "rule_id": "smartphone_required",
+          "type": "requires_smartphone",
+          "value": true,
+          "reason_code": "no_smartphone"
+        },
+        {
+          "rule_id": "work_docs_required",
+          "type": "requires_work_docs",
+          "value": true,
+          "reason_code": "no_work_docs"
+        },
+        {
+          "rule_id": "city_allowed",
+          "type": "city_in_hire_list",
+          "value": true,
+          "reason_code": "wrong_city"
+        }
+      ],
+      "screening_questions": [
+        "Ваш город?",
+        "Вам есть 18?",
+        "Смартфон Android/iOS есть?",
+        "Документы для работы в РФ есть?"
+      ],
+      "next_step": "interview_call_or_meet"
+    },
+    {
+      "vacancy_key": "courier_auto",
+      "title": "Водитель-курьер (авто)",
+      "description": "Доставка на автомобиле. Требуются права категории B и стаж от 1 года.",
+      "hire_cities": ["Москва", "Санкт-Петербург", "Казань", "Новосибирск"],
+      "knockout_rules": [
+        {
+          "rule_id": "age_18_plus",
+          "type": "min_age",
+          "value": 18,
+          "reason_code": "underage"
+        },
+        {
+          "rule_id": "license_required",
+          "type": "requires_driver_license",
+          "value": true,
+          "reason_code": "no_drivers_license"
+        },
+        {
+          "rule_id": "city_allowed",
+          "type": "city_in_hire_list",
+          "value": true,
+          "reason_code": "wrong_city"
+        }
+      ],
+      "screening_questions": [
+        "Ваш город?",
+        "Есть водительские права категории B?",
+        "Есть автомобиль для работы?",
+        "Документы для оформления есть?"
+      ],
+      "next_step": "interview_call_or_meet"
+    },
+    {
+      "vacancy_key": "picker_darkstore",
+      "title": "Сборщик заказов (даркстор/склад)",
+      "description": "Сборка и упаковка заказов. Важна внимательность и готовность к сменному графику.",
+      "hire_cities": ["Москва", "Санкт-Петербург", "Казань", "Новосибирск"],
+      "knockout_rules": [
+        {
+          "rule_id": "city_allowed",
+          "type": "city_in_hire_list",
+          "value": true,
+          "reason_code": "wrong_city"
+        },
+        {
+          "rule_id": "shift_ready",
+          "type": "requires_shift_work",
+          "value": true,
+          "reason_code": "schedule_mismatch"
+        }
+      ],
+      "screening_questions": [
+        "Ваш город?",
+        "Готовы к сменному графику (включая выходные/вечерние)?",
+        "Ок, если работа в темпе и на ногах?"
+      ],
+      "next_step": "interview_call_or_meet"
+    },
+    {
+      "vacancy_key": "seamstress_factory",
+      "title": "Швея на производство (поток)",
+      "description": "Работа на промышленном оборудовании. Важны качество и стабильный темп.",
+      "hire_cities": ["Москва", "Санкт-Петербург", "Казань", "Новосибирск"],
+      "knockout_rules": [
+        {
+          "rule_id": "industrial_experience",
+          "type": "requires_industrial_sewing",
+          "value": true,
+          "reason_code": "no_required_experience",
+          "requirement": "опыт на промышленном оборудовании (прямострочка/оверлок/распошив)"
+        },
+        {
+          "rule_id": "city_allowed",
+          "type": "city_in_hire_list",
+          "value": true,
+          "reason_code": "wrong_city"
+        }
+      ],
+      "screening_questions": [
+        "Ваш город?",
+        "На каких машинах работали? (прямострочка/оверлок/распошив)",
+        "Сколько лет опыта на производстве/потоке?",
+        "С какими материалами работали (трикотаж/ткань)?"
+      ],
+      "requirements_hint": "опыт на промышленном оборудовании (прямострочка/оверлок/распошив) и работа в темпе",
+      "next_step": "interview_call_or_trial_day"
+    },
+    {
+      "vacancy_key": "callcenter_operator",
+      "title": "Оператор колл-центра / менеджер по звонкам",
+      "description": "Входящие/исходящие звонки по скрипту, фиксация в CRM.",
+      "hire_cities": ["Москва", "Санкт-Петербург", "Казань", "Новосибирск"],
+      "knockout_rules": [
+        {
+          "rule_id": "pc_required",
+          "type": "requires_pc_or_laptop",
+          "value": true,
+          "reason_code": "no_required_experience",
+          "requirement": "ПК/ноутбук для работы"
+        },
+        {
+          "rule_id": "stable_internet",
+          "type": "requires_stable_internet",
+          "value": true,
+          "reason_code": "no_required_experience",
+          "requirement": "стабильный интернет"
+        },
+        {
+          "rule_id": "city_allowed",
+          "type": "city_in_hire_list",
+          "value": true,
+          "reason_code": "wrong_city"
+        }
+      ],
+      "screening_questions": [
+        "Ваш город?",
+        "Есть ноутбук/ПК для работы?",
+        "Интернет стабильный?",
+        "Готовы работать по скрипту и фиксировать в CRM?"
+      ],
+      "next_step": "interview_call"
+    }
+  ],
+  
+  "_notes": {
+    "usage": "Этот JSON — справочная спецификация. Актуальная конфигурация в docs/prompts/hr_agent_system.md",
+    "backend_integration": "Бэкенд пока НЕ парсит этот файл. Используется только Markdown-промпт для OpenAI Assistant",
+    "future_plans": [
+      "Валидация vacancy_key и reason_code через JSON Schema",
+      "Автоматизированное тестирование через pytest с фикстурами из vacancies[]",
+      "UI для редактирования политик с автогенерацией промпта",
+      "Follow-ups через Render Cron Jobs"
+    ]
+  }
+}
