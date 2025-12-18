@@ -116,16 +116,39 @@ async def send_to_agent(client: AsyncOpenAI, chat_id: int, text_msg: str) -> str
         assistant_id=_ensure_agent_id(),
     )
 
-    while True:
+    max_iterations = 10  # Защита от бесконечных циклов
+    iteration = 0
+
+    while iteration < max_iterations:
+        iteration += 1
         run = await client.beta.threads.runs.retrieve(
             thread_id=thread_id, run_id=run.id
         )
-        if run.status in {"completed", "failed", "cancelled", "expired"}:
+        
+        if run.status == "completed":
             break
+        elif run.status in {"failed", "cancelled", "expired"}:
+            logger.warning(f"Run {run.id} ended with status: {run.status}")
+            return "⚠️ Не удалось получить ответ от агента. Попробуйте позже."
+        elif run.status == "requires_action":
+            # Assistant пытается вызвать функции - НО у нас нет их реализации!
+            # Это означает, что Assistant настроен неправильно
+            logger.error(
+                "Assistant requires_action but no tool handlers configured",
+                extra={"run_id": run.id, "thread_id": thread_id}
+            )
+            # Отменяем run, чтобы не зависнуть
+            await client.beta.threads.runs.cancel(thread_id=thread_id, run_id=run.id)
+            return (
+                "⚠️ Бот пытается использовать инструменты, но они не настроены. "
+                "Обратитесь к администратору для настройки интеграций."
+            )
+        
         await asyncio.sleep(0.5)
 
-    if run.status != "completed":
-        return "⚠️ Не удалось получить ответ от агента. Попробуйте позже."
+    if iteration >= max_iterations:
+        logger.warning(f"Run {run.id} exceeded max iterations")
+        return "⏳ Обработка занимает слишком много времени. Попробуйте позже."
 
     messages = await client.beta.threads.messages.list(
         thread_id=thread_id, order="desc", limit=5
