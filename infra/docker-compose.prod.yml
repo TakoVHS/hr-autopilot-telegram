@@ -1,0 +1,55 @@
+version: "3.9"
+
+services:
+  backend:
+    image: ghcr.io/takovhs/hr-autopilot-telegram/hr-autopilot-backend:latest
+    restart: unless-stopped
+    env_file:
+      - /opt/hr-autopilot/.env
+    ports:
+      - "80:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      - caddy
+    networks:
+      - app_net
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+      - /opt/hr-autopilot/Caddyfile:/etc/caddy/Caddyfile:ro
+    networks:
+      - app_net
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file:
+      - /opt/hr-autopilot/.env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    networks:
+      - app_net
+
+networks:
+  app_net:
+    driver: bridge
+
+volumes:
+  caddy_data:
+  caddy_config:
+  pg_data:

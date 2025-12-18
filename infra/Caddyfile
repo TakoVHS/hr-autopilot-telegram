@@ -1,0 +1,7 @@
+http://your-domain.example {
+    redir https://{host}{uri}
+}
+
+your-domain.example {
+    reverse_proxy backend:8000
+}

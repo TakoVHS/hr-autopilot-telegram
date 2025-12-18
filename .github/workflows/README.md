@@ -1,0 +1,1 @@
+This folder contains GitHub Actions workflows for CI and deployment. CI runs syntax checks; deploy triggers Render deploy hooks on pushes to main.

@@ -1,0 +1,28 @@
+name: Deploy
+
+on:
+  push:
+    branches: ["main"]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render backend deploy
+        env:
+          RENDER_BACKEND_HOOK: ${{ secrets.RENDER_BACKEND_HOOK }}
+        run: |
+          if [ -n "$RENDER_BACKEND_HOOK" ]; then
+            curl -fsS -X POST "$RENDER_BACKEND_HOOK"
+          else
+            echo "RENDER_BACKEND_HOOK not set; skipping"
+          fi
+      - name: Trigger Render bot deploy
+        env:
+          RENDER_BOT_HOOK: ${{ secrets.RENDER_BOT_HOOK }}
+        run: |
+          if [ -n "$RENDER_BOT_HOOK" ]; then
+            curl -fsS -X POST "$RENDER_BOT_HOOK"
+          else
+            echo "RENDER_BOT_HOOK not set; skipping"
+          fi

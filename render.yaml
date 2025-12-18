@@ -15,6 +15,7 @@ services:
     region: singapore
     healthCheckPath: /health
     dockerfilePath: backend/Dockerfile
+    dockerContext: .
     envVars:
       - key: DATABASE_URL
         fromDatabase:
