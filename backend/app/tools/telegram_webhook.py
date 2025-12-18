@@ -182,8 +182,10 @@ async def set_telegram_webhook(auto: bool = False) -> dict[str, object]:
 
     url = settings.backend_public_url.rstrip("/") + "/telegram/webhook"
     payload = {"url": url}
-    if settings.webhook_secret:
-        payload["secret_token"] = settings.webhook_secret
+    
+    # ВАЖНО: НЕ используем webhook_secret - Telegram иногда падает с ним
+    # if settings.webhook_secret:
+    #     payload["secret_token"] = settings.webhook_secret
 
     status = "error"
     response_json: dict[str, object] = {}
@@ -195,6 +197,17 @@ async def set_telegram_webhook(auto: bool = False) -> dict[str, object]:
             response_json = resp.json() if resp.content else {}
             ok = resp.status_code == 200 and response_json.get("ok")
             status = "ok" if ok else f"fail:{resp.status_code}"
+            
+            # Дополнительная проверка что webhook реально установлен
+            if ok:
+                verify_resp = await client.get(
+                    f"https://api.telegram.org/bot{token}/getWebhookInfo"
+                )
+                verify_data = verify_resp.json() if verify_resp.content else {}
+                actual_url = verify_data.get("result", {}).get("url")
+                if actual_url != url:
+                    status = f"fail:url_mismatch"
+                    logger.warning(f"Webhook URL mismatch: expected {url}, got {actual_url}")
     except Exception as exc:  # pragma: no cover - log only
         response_json = {"ok": False, "description": str(exc)}
         status = f"error:{exc}"
@@ -222,6 +235,42 @@ def get_webhook_status() -> Optional[str]:
 async def set_webhook_endpoint(request: Request):
     _check_internal_token(request)
     return await set_telegram_webhook(auto=False)
+
+
+@router.get("/webhook-status")
+async def webhook_status_endpoint():
+    """Публичный endpoint для проверки статуса webhook."""
+    token = _ensure_bot_token()
+    
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(
+                f"https://api.telegram.org/bot{token}/getWebhookInfo"
+            )
+            data = resp.json() if resp.content else {}
+            result = data.get("result", {})
+            
+            expected_url = (
+                settings.backend_public_url.rstrip("/") + "/telegram/webhook"
+                if settings.backend_public_url
+                else None
+            )
+            
+            return {
+                "webhook_set": bool(result.get("url")),
+                "webhook_url": result.get("url"),
+                "expected_url": expected_url,
+                "url_matches": result.get("url") == expected_url,
+                "pending_updates": result.get("pending_update_count", 0),
+                "last_error_message": result.get("last_error_message"),
+                "status": get_webhook_status(),
+            }
+    except Exception as exc:
+        return {
+            "webhook_set": False,
+            "error": str(exc),
+            "status": "error",
+        }
 
 
 @router.post("/webhook")
