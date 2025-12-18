@@ -30,9 +30,11 @@
 |----------|----------|
 | [TELEGRAM_BOT_USAGE.md](docs/TELEGRAM_BOT_USAGE.md) | Инструкция по использованию бота для кандидатов и HR |
 | [OPENAI_ASSISTANT_SETUP.md](docs/OPENAI_ASSISTANT_SETUP.md) | Настройка OpenAI Assistant и обновление промпта |
-| [TESTING_CHECKLIST.md](docs/TESTING_CHECKLIST.md) | Чек-лист тестирования с 10 эталонными сценариями |
+| [TESTING_CHECKLIST.md](docs/TESTING_CHECKLIST.md) | Детальный regression pack с ожиданиями для каждого сценария |
 | [RENDER_DEPLOY.md](RENDER_DEPLOY.md) | Деплой на Render.com (Free Tier) |
 | [prompts/hr_agent_system.md](docs/prompts/hr_agent_system.md) | Системный промпт с вакансиями и критериями |
+| [hr_policy_spec.json](docs/hr_policy_spec.json) | JSON-спецификация политик (справочный документ) |
+| [POLICY_REVIEW.md](docs/POLICY_REVIEW.md) | Анализ применимости предложенных материалов |
 
 ## Структура проекта
 
