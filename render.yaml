@@ -1,0 +1,56 @@
+version: "1"
+
+databases:
+  - name: hr-autopilot-db
+    plan: free
+    region: singapore
+
+services:
+  - type: web
+    name: hr-autopilot-backend
+    env: docker
+    plan: free
+    autoDeploy: true
+    branch: main
+    region: singapore
+    healthCheckPath: /health
+    dockerfilePath: backend/Dockerfile
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: hr-autopilot-db
+          property: connectionString
+      - key: BOT_TOKEN
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: HR_AGENT_ID
+        sync: false
+      - key: WEBHOOK_SECRET
+        sync: false
+      - key: BACKEND_URL
+        sync: false
+      - key: DEBUG
+        value: "False"
+
+  - type: worker
+    name: hr-autopilot-bot
+    env: docker
+    plan: free
+    autoDeploy: true
+    branch: main
+    region: singapore
+    dockerfilePath: bot/Dockerfile
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: hr-autopilot-db
+          property: connectionString
+      - key: BOT_TOKEN
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: HR_AGENT_ID
+        sync: false
+      - key: BACKEND_URL
+        sync: false
