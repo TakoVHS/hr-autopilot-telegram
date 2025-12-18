@@ -1,26 +1,11 @@
-# FastAPI and server
 fastapi==0.109.0
 uvicorn[standard]==0.27.0
 pydantic==1.10.13
 pydantic-settings==2.1.0
 email-validator==2.1.0
-
-# Telegram bot
-aiogram==3.3.0
-
-# HTTP client
 httpx==0.26.0
-
-# Database
 sqlalchemy==2.0.25
 alembic==1.13.1
-asyncpg==0.29.0 
-
-# Other
+asyncpg==0.29.0
 python-dotenv==1.0.0
 openai==1.55.3
-
-# Dev / Tests
-pytest==7.4.4
-black==23.12.1
-isort==5.13.2
